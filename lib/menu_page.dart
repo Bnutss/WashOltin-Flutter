@@ -4,7 +4,8 @@ import 'employees_page.dart';
 import 'create_car_wash_page.dart';
 import 'washed_cars_page.dart';
 import 'report_wash_page.dart';
-import 'at_work_page.dart'; // Добавьте этот импорт
+import 'at_work_page.dart';
+import 'settings_page.dart'; // Импортируем страницу настроек
 
 class MenuPage extends StatelessWidget {
   const MenuPage({Key? key}) : super(key: key);
@@ -16,6 +17,14 @@ class MenuPage extends StatelessWidget {
         title: const Text('Меню', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blueGrey[900],
         actions: [
+          IconButton(
+            icon: Icon(Icons.settings, color: Colors.white), // Добавляем кнопку настроек
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.exit_to_app, color: Colors.white),
             onPressed: () {

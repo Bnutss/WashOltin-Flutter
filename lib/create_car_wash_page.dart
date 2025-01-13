@@ -35,7 +35,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
   }
 
   void _fetchServiceClasses() async {
-    final response = await http.get(Uri.parse('https://bnutss.pythonanywhere.com/api/service_classes/'));
+    final response = await http.get(Uri.parse('https://oltinwash.pythonanywhere.com/api/service_classes/'));
     if (response.statusCode == 200) {
       setState(() {
         _serviceClasses = json.decode(utf8.decode(response.bodyBytes));
@@ -45,7 +45,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
   }
 
   void _fetchEmployees() async {
-    final response = await http.get(Uri.parse('https://bnutss.pythonanywhere.com/employees/api/washer_employees/'));
+    final response = await http.get(Uri.parse('https://oltinwash.pythonanywhere.com/employees/api/washer_employees/'));
     if (response.statusCode == 200) {
       setState(() {
         _employees = json.decode(utf8.decode(response.bodyBytes));
@@ -100,7 +100,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
   }
 
   void _sendDataToServer() async {
-    final uri = Uri.parse('https://bnutss.pythonanywhere.com/api/add_order/');
+    final uri = Uri.parse('https://oltinwash.pythonanywhere.com/api/add_order/');
     final request = http.MultipartRequest('POST', uri);
 
     String username = 'your_username';
@@ -222,7 +222,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
                           ElevatedButton.icon(
                             onPressed: () => _pickImage(ImageSource.camera),
                             icon: const Icon(Icons.camera_alt),
-                            label: const Text('Сделать фото'),
+                            label: const Text('Сделать'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blueGrey[900],
                               foregroundColor: Colors.white,
@@ -231,7 +231,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
                           ElevatedButton.icon(
                             onPressed: () => _pickImage(ImageSource.gallery),
                             icon: const Icon(Icons.photo),
-                            label: const Text('Выбрать фото'),
+                            label: const Text('Выбрать'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blueGrey[900],
                               foregroundColor: Colors.white,
@@ -286,6 +286,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
                             prefixIcon: Icon(Icons.local_car_wash),
                             border: OutlineInputBorder(),
                           ),
+                          baseStyle: TextStyle(fontSize: 14),  // Уменьшение размера шрифта
                         ),
                         onChanged: (value) {
                           setState(() {
@@ -314,9 +315,12 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
+                        style: const TextStyle(fontSize: 14),  // Уменьшение размера шрифта
                         validator: (value) {
-                          if (value!.isNotEmpty &&
-                              double.tryParse(value.replaceAll(' ', '')) == null) {
+                          if (value == null || value.isEmpty) {
+                            return 'Пожалуйста, введите цену';
+                          }
+                          if (double.tryParse(value.replaceAll(' ', '')) == null) {
                             return 'Пожалуйста, введите правильную цену';
                           }
                           return null;
@@ -350,6 +354,7 @@ class _CreateCarWashPageState extends State<CreateCarWashPage> {
                             prefixIcon: Icon(Icons.person),
                             border: OutlineInputBorder(),
                           ),
+                          baseStyle: TextStyle(fontSize: 14),  // Уменьшение размера шрифта
                         ),
                         onChanged: (value) {
                           setState(() {

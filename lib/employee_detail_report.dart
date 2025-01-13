@@ -26,7 +26,7 @@ class _EmployeeDetailPageState extends State<EmployeeDetailPage> {
 
   Future<List<WashOrder>> fetchWashOrders(int employeeId, DateTime selectedDate) async {
     final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-    final response = await http.get(Uri.parse('http://bnutss.pythonanywhere.com/api/employee/$employeeId/wash_orders/?date=$formattedDate'));
+    final response = await http.get(Uri.parse('https://oltinwash.pythonanywhere.com/api/employee/$employeeId/wash_orders/?date=$formattedDate'));
 
     if (response.statusCode == 200) {
       List jsonResponse = json.decode(utf8.decode(response.bodyBytes));
@@ -77,12 +77,28 @@ class _EmployeeDetailPageState extends State<EmployeeDetailPage> {
                 itemBuilder: (context, index) {
                   final order = snapshot.data![index];
                   return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                    elevation: 4.0,
+                    margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 5.0),
+                    elevation: 5.0,
                     child: ListTile(
+                      leading: GestureDetector(
+                        onTap: () => _showImageDialog(context, order.carPhoto),
+                        child: Container(
+                          width: 80.0,
+                          height: 80.0,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle, // Круглая форма
+                            image: DecorationImage(
+                              image: NetworkImage(order.carPhoto),
+                              fit: BoxFit.cover, // Увеличивает/уменьшает изображение для полного покрытия
+                            ),
+                          ),
+                        ),
+                      ),
                       title: Text(
                         '${index + 1}. ${order.typeOfCarWash}',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,16 +107,32 @@ class _EmployeeDetailPageState extends State<EmployeeDetailPage> {
                           Text('Касса: ${formatNumber(order.companyShare)} UZS'),
                           Text('На руки: ${formatNumber(order.employeeShare)} UZS'),
                           Text('Фонд: ${formatNumber(order.fund)} UZS'),
-                          Text('Дата: ${DateFormat('dd-MM-yyyy').format(order.orderDate)}'),
+                          Text('Дата: ${DateFormat('dd-MM-yyyy HH:mm').format(order.orderDate)}'),
                         ],
                       ),
-                      trailing: Icon(order.isCompleted ? Icons.check_circle : Icons.pending),
+                      trailing: Icon(
+                        order.isCompleted ? Icons.check_circle : Icons.pending,
+                      ),
                     ),
                   );
                 },
               );
             }
           },
+        ),
+      ),
+    );
+  }
+
+  void _showImageDialog(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          placeholder: (context, url) => Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) => Icon(Icons.error),
+          fit: BoxFit.contain,
         ),
       ),
     );
@@ -130,13 +162,13 @@ class WashOrder {
 
   factory WashOrder.fromJson(Map<String, dynamic> json) {
     return WashOrder(
-      carPhoto: json['car_photo'] ?? '',
+      carPhoto: json['car_photo_url'] ?? '',
       typeOfCarWash: json['type_of_car_wash']['name'] ?? '',
       negotiatedPrice: double.tryParse(json['negotiated_price'].toString()) ?? 0.0,
       fund: double.tryParse(json['fund'].toString()) ?? 0.0,
       employeeShare: double.tryParse(json['employee_share'].toString()) ?? 0.0,
       companyShare: double.tryParse(json['company_share'].toString()) ?? 0.0,
-      orderDate: DateTime.parse(json['order_date']),
+      orderDate: DateTime.parse(json['order_date']).toLocal(),
       isCompleted: json['is_completed'] ?? false,
     );
   }

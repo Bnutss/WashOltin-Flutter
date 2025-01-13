@@ -53,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://bnutss.pythonanywhere.com/api/login/'),
+        Uri.parse('https://oltinwash.pythonanywhere.com/api/login/'),
         headers: <String, String>{
           'Content-Type': 'application/json',
         },
@@ -89,7 +89,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       } else if (defaultTargetPlatform == TargetPlatform.android) {
-        // Отпечаток пальца для Android
         isAuthenticated = await _localAuthentication.authenticate(
           localizedReason: 'Пожалуйста, авторизуйтесь для входа с помощью отпечатка пальца',
           options: const AuthenticationOptions(
@@ -99,7 +98,6 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (isAuthenticated) {
-        // Замените эти данные на фактические данные пользователя
         _usernameController.text = 'apk';
         _passwordController.text = 'Aabbcc321';
         await _login();
@@ -144,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _usernameController,
                     decoration: InputDecoration(
                       labelText: 'Логин',
-                      prefixIcon: Icon(Icons.person, color: Colors.white),
+                      prefixIcon: Icon(Icons.person, color: Colors.black),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30.0),
                       ),
@@ -158,7 +156,7 @@ class _LoginPageState extends State<LoginPage> {
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Пароль',
-                      prefixIcon: Icon(Icons.lock, color: Colors.white),
+                      prefixIcon: Icon(Icons.lock, color: Colors.black),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30.0),
                       ),

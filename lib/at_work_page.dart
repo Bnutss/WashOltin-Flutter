@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class AtWorkPage extends StatefulWidget {
   const AtWorkPage({Key? key}) : super(key: key);
@@ -35,7 +34,7 @@ class _AtWorkPageState extends State<AtWorkPage> {
   Future<void> fetchEmployees() async {
     try {
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      final response = await http.get(Uri.parse('http://bnutss.pythonanywhere.com/api/employees/at-work/?date=$formattedDate'));
+      final response = await http.get(Uri.parse('https://oltinwash.pythonanywhere.com/api/employees/at-work/?date=$formattedDate'));
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -69,10 +68,6 @@ class _AtWorkPageState extends State<AtWorkPage> {
       _searchQuery = _searchController.text;
       _filterResults();
     });
-  }
-
-  String proxyUrl(String url) {
-    return 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}';
   }
 
   @override
@@ -195,14 +190,27 @@ class _AtWorkPageState extends State<AtWorkPage> {
                 leading: CircleAvatar(
                   backgroundColor: Colors.transparent,
                   child: ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: proxyUrl(photoUrl),
-                      placeholder: (context, url) => CircularProgressIndicator(),
-                      errorWidget: (context, url, error) => Icon(Icons.error),
+                    child: photoUrl.isNotEmpty
+                        ? Image.network(
+                      photoUrl,
                       fit: BoxFit.cover,
                       width: 40,
                       height: 40,
-                    ),
+                      loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                        return Icon(Icons.error);
+                      },
+                    )
+                        : Image.asset('assets/images/placeholder.png', fit: BoxFit.cover, width: 40, height: 40),
                   ),
                 ),
               ),

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'login_page.dart';
 import 'employees_detail_page.dart';
 import 'create_employee_page.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class EmployeesPage extends StatefulWidget {
   const EmployeesPage({Key? key}) : super(key: key);
@@ -26,7 +25,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
   }
 
   Future<List<Employee>> fetchEmployees() async {
-    final response = await http.get(Uri.parse('http://bnutss.pythonanywhere.com/employees/api/employees/'));
+    final response = await http.get(Uri.parse('https://oltinwash.pythonanywhere.com/employees/api/employees/'));
 
     if (response.statusCode == 200) {
       List jsonResponse = json.decode(utf8.decode(response.bodyBytes));
@@ -41,7 +40,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
   }
 
   Future<void> deleteEmployee(int id) async {
-    final response = await http.delete(Uri.parse('http://bnutss.pythonanywhere.com/employees/api/employees/$id/delete/'));
+    final response = await http.delete(Uri.parse('https://oltinwash.pythonanywhere.com/employees/api/employees/$id/delete/'));
 
     if (response.statusCode == 204) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,8 +90,10 @@ class _EmployeesPageState extends State<EmployeesPage> {
     });
   }
 
-  String proxyUrl(String url) {
-    return 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}';
+  Future<void> _refreshData() async {
+    setState(() {
+      futureEmployees = fetchEmployees();
+    });
   }
 
   @override
@@ -106,14 +107,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
         title: const Text('Список сотрудников', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blueGrey[900],
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                futureEmployees = fetchEmployees();
-              });
-            },
-          ),
           Center(
             child: Row(
               children: [
@@ -160,83 +153,96 @@ class _EmployeesPageState extends State<EmployeesPage> {
           ),
         ),
       ),
-      body: Center(
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
         child: FutureBuilder<List<Employee>>(
           future: futureEmployees,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator();
+              return Center(child: CircularProgressIndicator());
             } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
+              return Center(child: Text('Error: ${snapshot.error}'));
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Text('Нет сотрудников');
+              return Center(child: Text('Нет сотрудников'));
             } else {
               return ListView.builder(
                 itemCount: snapshot.data!.length,
                 itemBuilder: (context, index) {
                   var employee = snapshot.data![index];
-                  return Card(
-                    margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                    elevation: 4.0,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.transparent,
-                        child: ClipOval(
-                          child: employee.photoUrl != null && employee.photoUrl!.isNotEmpty
-                              ? CachedNetworkImage(
-                            imageUrl: proxyUrl(employee.photoUrl!),
-                            placeholder: (context, url) => CircularProgressIndicator(),
-                            errorWidget: (context, url, error) => Icon(Icons.error),
-                            fit: BoxFit.cover,
-                            width: 40,
-                            height: 40,
-                          )
-                              : Image.asset('assets/images/placeholder.png', fit: BoxFit.cover, width: 40, height: 40),
+                  return Dismissible(
+                    key: Key(employee.id.toString()),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: EdgeInsets.only(right: 20.0),
+                      child: Icon(Icons.delete, color: Colors.white),
+                    ),
+                    confirmDismiss: (direction) async {
+                      return await showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text('Подтверждение удаления'),
+                          content: Text('Вы уверены, что хотите удалить сотрудника?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: Text('Нет'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: Text('Да'),
+                            ),
+                          ],
                         ),
-                      ),
-                      title: Text(employee.name, style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('Должность: ${employee.position}\nВозраст: ${employee.age} лет'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.info),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EmployeeDetailPage(employeeId: employee.id),
-                                ),
-                              );
-                            },
+                      );
+                    },
+                    onDismissed: (direction) async {
+                      await deleteEmployee(employee.id);
+                    },
+                    child: Card(
+                      margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                      elevation: 4.0,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.transparent,
+                          child: ClipOval(
+                            child: employee.photoUrl != null && employee.photoUrl!.isNotEmpty
+                                ? Image.network(
+                              employee.photoUrl!,
+                              fit: BoxFit.cover,
+                              width: 40,
+                              height: 40,
+                              loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                                return Icon(Icons.error);
+                              },
+                            )
+                                : Image.asset('assets/images/placeholder.png', fit: BoxFit.cover, width: 40, height: 40),
                           ),
-                          IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () async {
-                              bool confirm = await showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: Text('Подтверждение удаления'),
-                                  content: Text('Вы уверены, что хотите удалить сотрудника?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.of(context).pop(false),
-                                      child: Text('Нет'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.of(context).pop(true),
-                                      child: Text('Да'),
-                                    ),
-                                  ],
-                                ),
-                              );
-
-                              if (confirm) {
-                                await deleteEmployee(employee.id);
-                              }
-                            },
-                          ),
-                        ],
+                        ),
+                        title: Text(employee.name, style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Должность: ${employee.position}\nВозраст: ${employee.age} лет'),
+                        trailing: IconButton(
+                          icon: Icon(Icons.info),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EmployeeDetailPage(employeeId: employee.id),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   );

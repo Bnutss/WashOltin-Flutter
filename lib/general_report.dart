@@ -27,13 +27,15 @@ class _GeneralReportPageState extends State<GeneralReportPage> {
     final formattedStartDate = DateFormat('yyyy-MM-dd').format(dateRange.start);
     final formattedEndDate = DateFormat('yyyy-MM-dd').format(dateRange.end);
     final response = await http.get(
-      Uri.parse('https://bnutss.pythonanywhere.com/api/report?start_date=$formattedStartDate&end_date=$formattedEndDate'),
+      Uri.parse('https://oltinwash.pythonanywhere.com/api/report?start_date=$formattedStartDate&end_date=$formattedEndDate'),
     );
 
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
       return data.map((item) => ReportData.fromJson(item)).toList();
     } else {
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
       throw Exception('Failed to load report');
     }
   }
@@ -60,7 +62,7 @@ class _GeneralReportPageState extends State<GeneralReportPage> {
   }
 
   Future<void> _sendReportToTelegram(double totalAmount, double cashierAmount, double employeesAmount, int totalWashes) async {
-    final String apiUrl = 'https://bnutss.pythonanywhere.com/api/send_telegram_message/';
+    final String apiUrl = 'https://oltinwash.pythonanywhere.com/api/send_telegram_message/';
     final String startDate = DateFormat('dd.MM.yyyy').format(selectedDateRange.start);
     final String endDate = DateFormat('dd.MM.yyyy').format(selectedDateRange.end);
 
@@ -222,13 +224,13 @@ class _GeneralReportPageState extends State<GeneralReportPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey[900]),
             ),
             const Divider(height: 15, thickness: 1.5),
-            _buildTotalItem('Общее количество машин', totalWashes.toString()),
+            _buildTotalItem('Общее кол-во машин', totalWashes.toString()),
             const SizedBox(height: 8),
             _buildTotalItem('Итоговая сумма', formatNumber(totalAmount) + ' UZS'),
             const SizedBox(height: 8),
-            _buildTotalItem('Итоговая сумма для кассы', formatNumber(totalCashierAmount) + ' UZS'),
+            _buildTotalItem('Итоги кассы', formatNumber(totalCashierAmount) + ' UZS'),
             const SizedBox(height: 8),
-            _buildTotalItem('Итоговый заработок мойщиков', formatNumber(totalEmployeesAmount) + ' UZS'),
+            _buildTotalItem('Итоги мойщиков', formatNumber(totalEmployeesAmount) + ' UZS'),
           ],
         ),
       ),
@@ -272,11 +274,11 @@ class ReportCard extends StatelessWidget {
           children: [
             _buildReportItem('Дата', '${DateFormat('dd.MM.yyyy').format(data.orderDate)}'),
             _buildDivider(),
-            _buildReportItem('Общее количество моек', '${data.totalWashes}'),
+            _buildReportItem('Общее кол-во моек', '${data.totalWashes}'),
             _buildDivider(),
             _buildReportItem('Общая сумма', formatNumber(data.totalAmount)),
             _buildDivider(),
-            _buildReportItem('Сумма для кассы', formatNumber(data.cashierAmount)),
+            _buildReportItem('Сумма кассы', formatNumber(data.cashierAmount)),
             _buildDivider(),
             _buildReportItem('Заработок мойщиков', formatNumber(data.employeesAmount)),
           ],

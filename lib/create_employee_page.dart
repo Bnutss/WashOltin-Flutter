@@ -34,7 +34,7 @@ class _CreateEmployeePageState extends State<CreateEmployeePage> {
 
   Future<void> _fetchPositions() async {
     try {
-      final response = await http.get(Uri.parse('http://bnutss.pythonanywhere.com/employees/api/positions/'));
+      final response = await http.get(Uri.parse('https://oltinwash.pythonanywhere.com/employees/api/positions/'));
       if (response.statusCode == 200) {
         final List<dynamic> responseData = json.decode(utf8.decode(response.bodyBytes));
         setState(() {
@@ -61,7 +61,7 @@ class _CreateEmployeePageState extends State<CreateEmployeePage> {
       return;
     }
 
-    final uri = Uri.parse('http://bnutss.pythonanywhere.com/employees/api/employees/add/');
+    final uri = Uri.parse('https://oltinwash.pythonanywhere.com/employees/api/employees/add/');
     var request = http.MultipartRequest('POST', uri);
 
     request.fields['name_employees'] = _nameController.text;

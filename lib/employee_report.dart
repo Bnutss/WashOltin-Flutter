@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 import 'employee_detail_report.dart';
 
 class EmployeeReportPage extends StatefulWidget {
@@ -19,11 +20,12 @@ class _EmployeeReportPageState extends State<EmployeeReportPage> {
   String _searchQuery = '';
   DateTime _selectedDate = DateTime.now();
   Future<void>? _initialLoad;
-  final String baseUrl = 'http://bnutss.pythonanywhere.com';
+  final String baseUrl = 'https://oltinwash.pythonanywhere.com';
 
   @override
   void initState() {
     super.initState();
+    tzdata.initializeTimeZones();
     _initialLoad = _loadData();
     _searchController.addListener(_onSearchChanged);
   }
@@ -65,8 +67,6 @@ class _EmployeeReportPageState extends State<EmployeeReportPage> {
       } else {
         List<dynamic> jsonList = data;
         List<EmployeeStats> statsList = jsonList.map((json) => EmployeeStats.fromJson(json, baseUrl)).toList();
-
-        // Сортировка списка по количеству помытых машин
         statsList.sort((a, b) => b.washedCarsCount.compareTo(a.washedCarsCount));
 
         return statsList;
@@ -100,8 +100,32 @@ class _EmployeeReportPageState extends State<EmployeeReportPage> {
     return NumberFormat("#,##0", "en_US").format(number).replaceAll(',', ' ');
   }
 
-  String proxyUrl(String url) {
-    return 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}';
+  Future<void> _completeOrdersForToday(int employeeId) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/employee-stats/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'employee_id': employeeId}),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _employeeStats = _employeeStats.map((stats) {
+          if (stats.id == employeeId) {
+            stats.isCompleted = true;
+            stats.completionDate = DateTime.now();
+          }
+          return stats;
+        }).toList();
+      });
+    } else {
+      throw Exception('Не удалось завершить заказы.');
+    }
+  }
+
+  DateTime _parseServerTime(String timeString) {
+    final serverTime = DateTime.parse(timeString);
+    final localTime = serverTime.toLocal();
+    return localTime;
   }
 
   @override
@@ -184,6 +208,7 @@ class _EmployeeReportPageState extends State<EmployeeReportPage> {
                 itemBuilder: (context, index) {
                   var stats = _employeeStats[index];
                   return Card(
+                    color: stats.isCompleted ? Colors.lightGreenAccent : null,
                     margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
                     elevation: 4.0,
                     child: ListTile(
@@ -192,42 +217,70 @@ class _EmployeeReportPageState extends State<EmployeeReportPage> {
                         backgroundColor: Colors.transparent,
                         child: ClipOval(
                           child: stats.photoUrl.isNotEmpty
-                              ? CachedNetworkImage(
-                            imageUrl: proxyUrl(stats.photoUrl),
-                            placeholder: (context, url) => const CircularProgressIndicator(),
-                            errorWidget: (context, url, error) => const Icon(Icons.error),
+                              ? Image.network(
+                            stats.photoUrl,
                             fit: BoxFit.cover,
                             width: 60,
                             height: 60,
+                            loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              );
+                            },
+                            errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                              return const Icon(Icons.error);
+                            },
                           )
                               : Image.asset('assets/images/placeholder.png', fit: BoxFit.cover, width: 60, height: 60),
                         ),
                       ),
-                      title: Text(stats.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(stats.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Количество машин: ${stats.washedCarsCount}'),
-                          Text('Общая сумма: ${formatNumber(stats.totalWashAmount)} UZS'),
-                          Text('На руки: ${formatNumber(stats.employeeShare)} UZS'),
-                          Text('Касса: ${formatNumber(stats.companyShare)} UZS'),
-                          Text('Фонд: ${formatNumber(stats.fundShare)} UZS'),
-                          if (stats.date != null) Text('Дата: ${DateFormat('dd-MM-yyyy').format(stats.date!)}'),
+                          Text('Количество машин: ${stats.washedCarsCount}', style: const TextStyle(fontSize: 12)),
+                          Text('Общая сумма: ${formatNumber(stats.totalWashAmount)} UZS', style: const TextStyle(fontSize: 12)),
+                          Text('На руки: ${formatNumber(stats.employeeShare)} UZS', style: const TextStyle(fontSize: 12)),
+                          Text('Касса: ${formatNumber(stats.companyShare)} UZS', style: const TextStyle(fontSize: 12)),
+                          Text('Фонд: ${formatNumber(stats.fundShare)} UZS', style: const TextStyle(fontSize: 12)),
+                          if (stats.date != null) Text('Дата: ${DateFormat('dd-MM-yyyy').format(stats.date!)}', style: const TextStyle(fontSize: 12)),
+                          if (stats.isCompleted && stats.completionDate != null)
+                            Text(
+                              'Сдал кассу: ${DateFormat('dd-MM-yyyy HH:mm').format(_parseServerTime(stats.completionDate!.toIso8601String()))}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
                         ],
                       ),
-                      trailing: IconButton(
-                        icon: Icon(Icons.info_outline),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EmployeeDetailPage(
-                                employeeStats: stats,
-                                selectedDate: _selectedDate, // Передаем выбранную дату
-                              ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.info_outline),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EmployeeDetailPage(
+                                    employeeStats: stats,
+                                    selectedDate: _selectedDate,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          if (!stats.isCompleted)
+                            IconButton(
+                              icon: Icon(Icons.check_circle_outline, color: Colors.green),
+                              onPressed: () {
+                                _completeOrdersForToday(stats.id);
+                              },
                             ),
-                          );
-                        },
+                        ],
                       ),
                     ),
                   );
@@ -243,38 +296,47 @@ class _EmployeeReportPageState extends State<EmployeeReportPage> {
 
 class EmployeeStats {
   final int id;
+  final int orderId;
   final String name;
   final int washedCarsCount;
   final double totalWashAmount;
   final double employeeShare;
   final double companyShare;
-  final double fundShare; // Новое поле
+  final double fundShare;
   final DateTime? date;
   final String photoUrl;
+  bool isCompleted;
+  DateTime? completionDate;
 
   EmployeeStats({
     required this.id,
+    required this.orderId,
     required this.name,
     required this.washedCarsCount,
     required this.totalWashAmount,
     required this.employeeShare,
     required this.companyShare,
-    required this.fundShare, // Новое поле
+    required this.fundShare,
     required this.date,
     required this.photoUrl,
+    this.isCompleted = false,
+    this.completionDate,
   });
 
   factory EmployeeStats.fromJson(Map<String, dynamic> json, String baseUrl) {
     return EmployeeStats(
       id: json['id'] ?? 0,
+      orderId: json['order_id'] ?? 0,
       name: json['name_employees'] ?? '',
       washedCarsCount: json['washed_cars_count'] ?? 0,
       totalWashAmount: _toDouble(json['total_wash_amount'] ?? 0.0),
       employeeShare: _toDouble(json['employee_share'] ?? 0.0),
       companyShare: _toDouble(json['company_share'] ?? 0.0),
-      fundShare: _toDouble(json['fund_share'] ?? 0.0), // Новое поле
+      fundShare: _toDouble(json['fund_share'] ?? 0.0),
       date: json['date'] != null ? DateTime.parse(json['date']) : null,
       photoUrl: json['photo_url'] != null ? '$baseUrl${json['photo_url']}' : '',
+      isCompleted: json['is_completed'] ?? false,
+      completionDate: json['completion_date'] != null ? DateTime.parse(json['completion_date']) : null,
     );
   }
 
@@ -288,31 +350,5 @@ class EmployeeStats {
     } else {
       return 0.0;
     }
-  }
-}
-
-class WashOrder {
-  final String carPhoto;
-  final String typeOfCarWash;
-  final double negotiatedPrice;
-  final DateTime orderDate;
-  final bool isCompleted;
-
-  WashOrder({
-    required this.carPhoto,
-    required this.typeOfCarWash,
-    required this.negotiatedPrice,
-    required this.orderDate,
-    required this.isCompleted,
-  });
-
-  factory WashOrder.fromJson(Map<String, dynamic> json) {
-    return WashOrder(
-      carPhoto: json['car_photo'] ?? '',
-      typeOfCarWash: json['type_of_car_wash']['name'] ?? '', // Доступ к name внутри type_of_car_wash
-      negotiatedPrice: double.tryParse(json['negotiated_price'].toString()) ?? 0.0,
-      orderDate: DateTime.parse(json['order_date']),
-      isCompleted: json['is_completed'] ?? false,
-    );
   }
 }

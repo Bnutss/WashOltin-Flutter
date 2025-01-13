@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'washed_cars_page.dart';
 
@@ -7,10 +6,6 @@ class DetailWashedCarsPage extends StatelessWidget {
   final WashedCar car;
 
   const DetailWashedCarsPage({Key? key, required this.car}) : super(key: key);
-
-  String proxyUrl(String url) {
-    return 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +44,7 @@ class DetailWashedCarsPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       image: DecorationImage(
                         image: car.carPhoto != null && car.carPhoto!.isNotEmpty
-                            ? CachedNetworkImageProvider(proxyUrl(car.carPhoto!))
+                            ? NetworkImage(car.carPhoto!) // Используем NetworkImage для загрузки изображения
                             : AssetImage('assets/images/placeholder.png') as ImageProvider,
                         fit: BoxFit.cover,
                       ),
